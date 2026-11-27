@@ -2,6 +2,7 @@ public class Exemplar {
     private int id;
     private String codigo;
     private EstadoExemplar estadoAtual;
+    private Cadastro reservadoPara;
 
     public Exemplar(int id, String codigo) {
         this.id = id;
@@ -35,6 +36,14 @@ public class Exemplar {
 
     public String getCodigo() {
         return codigo;
+    }
+
+    public Cadastro getReservadoPara() {
+        return reservadoPara;
+    }
+
+    public void setReservadoPara(Cadastro reservadoPara) {
+        this.reservadoPara = reservadoPara;
     }
 
     public EstadoExemplar getEstadoAtual() {

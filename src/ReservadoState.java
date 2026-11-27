@@ -10,11 +10,13 @@ public class ReservadoState implements EstadoExemplar {
 
     @Override
     public void emprestar(Exemplar exemplar) {
+        exemplar.setReservadoPara(null);
         exemplar.setEstado(new EmprestadoState());
     }
 
     @Override
     public void devolver(Exemplar exemplar) {
+        exemplar.setReservadoPara(null);
         exemplar.setEstado(new DisponivelState());
     }
 
@@ -26,6 +28,7 @@ public class ReservadoState implements EstadoExemplar {
     @Override
     public void liberar() {
         if (this.exemplar != null) {
+            this.exemplar.setReservadoPara(null);
             this.exemplar.setEstado(new DisponivelState());
         }
     }

@@ -13,7 +13,7 @@ public abstract class ItemAcervo {
     private List<Exemplar> exemplares = new ArrayList<>();
     private List<Observador> observadores = new ArrayList<>();
     private Queue<Reserva> filaReservas = new LinkedList<>();
-    private int proximoIdExemplar = 1;
+    private static int contadorIdExemplar = 1;
 
     protected ItemAcervo() {
     }
@@ -41,7 +41,7 @@ public abstract class ItemAcervo {
     }
 
     public Exemplar adicionarExemplar(String codigo) {
-        Exemplar exemplar = new Exemplar(proximoIdExemplar++, codigo);
+        Exemplar exemplar = new Exemplar(contadorIdExemplar++, codigo);
         exemplares.add(exemplar);
         return exemplar;
     }
@@ -60,8 +60,18 @@ public abstract class ItemAcervo {
         observadores.remove(o);
     }
 
+    private String mensagemDisponibilidade() {
+        return "O item '" + titulo + "' (código: " + codigo + ") possui exemplar disponível.";
+    }
+
+    public void notificarObservador(Observador o) {
+        if (o != null && observadores.contains(o)) {
+            o.atualizar(mensagemDisponibilidade());
+        }
+    }
+
     public void notificarObservadores() {
-        String mensagem = "O item '" + titulo + "' (código: " + codigo + ") possui exemplar disponível.";
+        String mensagem = mensagemDisponibilidade();
         for (Observador o : new ArrayList<>(observadores)) {
             o.atualizar(mensagem);
         }
@@ -71,6 +81,22 @@ public abstract class ItemAcervo {
         if (reserva != null) {
             filaReservas.offer(reserva);
         }
+    }
+
+    public void removerReservaDaFila(Reserva reserva) {
+        filaReservas.remove(reserva);
+        if (reserva != null && reserva.getCadastro() != null) {
+            removerObservador(reserva.getCadastro());
+        }
+    }
+
+    public boolean possuiReservaDe(Cadastro cadastro) {
+        for (Reserva r : filaReservas) {
+            if (r.getCadastro() == cadastro) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Reserva consumirProximaReserva() {

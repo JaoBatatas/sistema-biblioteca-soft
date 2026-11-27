@@ -9,7 +9,6 @@ public class EmprestimoService {
     private List<Emprestimo> emprestimos = new ArrayList<>();
     private Map<Integer, Cadastro> cadastros = new HashMap<>();
     private Map<Integer, ItemAcervo> itensAcervo = new HashMap<>();
-    private Map<Integer, Exemplar> exemplaresPorId = new HashMap<>();
     private NotificacaoFactory notificacaoFactory = new EmailNotificacaoFactory();
 
     private int proximoIdEmprestimo = 1;
@@ -25,9 +24,6 @@ public class EmprestimoService {
     public void registrarItemAcervo(ItemAcervo item) {
         if (item != null) {
             itensAcervo.put(item.getId(), item);
-            for (Exemplar e : item.getExemplares()) {
-                exemplaresPorId.put(e.getId(), e);
-            }
         }
     }
 
@@ -55,16 +51,29 @@ public class EmprestimoService {
             throw new IllegalStateException("Limite de empréstimos excedido para a política do usuário.");
         }
 
+        List<Exemplar> selecionados = new ArrayList<>();
+        for (int exemplarId : exemplaresIDs) {
+            Exemplar exemplar = buscarExemplarPorId(exemplarId);
+            if (exemplar == null || selecionados.contains(exemplar) || !podeSerEmprestadoPara(exemplar, usuario)) {
+                throw new IllegalStateException("Exemplar indisponível: " + exemplarId);
+            }
+            selecionados.add(exemplar);
+        }
+
         Date agora = new Date();
         Date vencimento = new Date(agora.getTime() + TimeUnit.DAYS.toMillis(politica.obterPrazoMaximo()));
         Emprestimo ultimoCriado = null;
 
-        for (int exemplarId : exemplaresIDs) {
-            Exemplar exemplar = exemplaresPorId.get(exemplarId);
-            if (exemplar == null || !exemplar.estaDisponivel()) {
-                throw new IllegalStateException("Exemplar indisponível: " + exemplarId);
-            }
+        for (Exemplar exemplar : selecionados) {
+            boolean estavaReservado = exemplar.getEstadoAtual() instanceof ReservadoState;
             exemplar.emprestar();
+            exemplar.setReservadoPara(null);
+            if (estavaReservado) {
+                ItemAcervo item = encontrarItemPorExemplar(exemplar);
+                if (item != null) {
+                    item.removerObservador(usuario);
+                }
+            }
             Emprestimo emprestimo = new Emprestimo(proximoIdEmprestimo++, agora, vencimento, usuario, exemplar);
             emprestimos.add(emprestimo);
             usuario.adicionarEmprestimo(emprestimo);
@@ -89,12 +98,11 @@ public class EmprestimoService {
 
         ItemAcervo itemPai = encontrarItemPorExemplar(exemplar);
         if (itemPai != null && itemPai.proximaReserva() != null) {
-            exemplar.reservar();
-            itemPai.notificarObservadores();
             Reserva atendida = itemPai.consumirProximaReserva();
-            if (atendida != null && atendida.getCadastro() != null) {
-                itemPai.removerObservador(atendida.getCadastro());
-            }
+            exemplar.reservar();
+            exemplar.setReservadoPara(atendida.getCadastro());
+            itemPai.notificarObservador(atendida.getCadastro());
+            itemPai.removerObservador(atendida.getCadastro());
         }
 
         if (diasAtraso > 0) {
@@ -146,7 +154,7 @@ public class EmprestimoService {
 
     public boolean renovarEmprestimo(int emprestimoID) {
         Emprestimo emprestimo = buscarEmprestimoPorId(emprestimoID);
-        if (emprestimo == null) {
+        if (emprestimo == null || emprestimo.getCadastro().possuiPendencia()) {
             return false;
         }
         ItemAcervo itemPai = encontrarItemPorExemplar(emprestimo.getExemplar());
@@ -165,10 +173,32 @@ public class EmprestimoService {
         if (itemAcervo.quantidadeExemplaresDisponiveis() > 0) {
             throw new IllegalStateException("Há exemplares disponíveis; não é necessário reservar.");
         }
+        if (itemAcervo.possuiReservaDe(usuario)) {
+            throw new IllegalStateException("Usuário já possui reserva para este item.");
+        }
         Reserva reserva = new Reserva(proximoIdReserva++, new Date(), usuario, itemAcervo);
         itemAcervo.adicionarReservaNaFila(reserva);
         itemAcervo.adicionarObservador(usuario);
         return reserva;
+    }
+
+    private Exemplar buscarExemplarPorId(int id) {
+        for (ItemAcervo item : itensAcervo.values()) {
+            for (Exemplar e : item.getExemplares()) {
+                if (e.getId() == id) {
+                    return e;
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean podeSerEmprestadoPara(Exemplar exemplar, Cadastro usuario) {
+        if (exemplar.estaDisponivel()) {
+            return true;
+        }
+        return exemplar.getEstadoAtual() instanceof ReservadoState
+                && exemplar.getReservadoPara() == usuario;
     }
 
     private Emprestimo buscarEmprestimoPorId(int id) {

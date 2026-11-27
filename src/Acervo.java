@@ -82,7 +82,8 @@ public class Acervo {
     public ItemAcervo[] relatorioAtrasados() {
         List<ItemAcervo> atrasados = new ArrayList<>();
         for (Emprestimo emp : emprestimosRegistrados) {
-            if (emp.getStatus() == StatusEmprestimo.ATRASADO || emp.calcularAtraso() > 0) {
+            if (emp.getStatus() != StatusEmprestimo.DEVOLVIDO
+                    && (emp.getStatus() == StatusEmprestimo.ATRASADO || emp.calcularAtraso() > 0)) {
                 for (ItemAcervo item : itens) {
                     if (item.getExemplares().contains(emp.getExemplar()) && !atrasados.contains(item)) {
                         atrasados.add(item);

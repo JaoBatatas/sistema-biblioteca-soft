@@ -16,8 +16,8 @@ public class Reserva {
 
     public void cancelarReserva() {
         this.ativa = false;
-        if (itemAcervo != null && cadastro != null) {
-            itemAcervo.removerObservador(cadastro);
+        if (itemAcervo != null) {
+            itemAcervo.removerReservaDaFila(this);
         }
     }
 

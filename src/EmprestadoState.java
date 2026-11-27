@@ -7,7 +7,7 @@ public class EmprestadoState implements EstadoExemplar {
 
     @Override
     public void reservar(Exemplar exemplar) {
-        exemplar.setEstado(new ReservadoState(exemplar));
+        throw new IllegalStateException("Não é possível reservar um exemplar emprestado antes da devolução.");
     }
 
     @Override
